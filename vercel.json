@@ -13,14 +13,16 @@
       "use": "@vercel/node"
     }
   ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/src/server.js"
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/frontend/$1"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/backend/src/server.js"
+      "destination": "/index.html"
     }
   ]
 }
