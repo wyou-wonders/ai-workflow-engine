@@ -55,7 +55,18 @@ const requestLogger = winston.createLogger({
 
 const app = express();
 
-app.use(cors());
+// CORS 설정 - Vercel 환경을 포함한 모든 origin 허용
+// credentials: true는 쿠키나 인증 헤더를 포함한 요청을 허용합니다
+app.use(cors({
+  origin: true, // 모든 origin 허용 (프로덕션에서는 특정 도메인으로 제한 가능)
+  credentials: true, // 인증 정보 포함 요청 허용
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// OPTIONS 요청에 대한 명시적 처리 (Preflight 요청)
+app.options('*', cors());
+
 app.use(express.json());
 
 // 로깅 미들웨어 (기존 코드와 동일)
