@@ -9,8 +9,7 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist",
-        "buildCommand": "npm install && npm run build"
+        "distDir": "dist"
       }
     }
   ],
@@ -24,7 +23,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "frontend/dist/$1"
+      "dest": "/index.html"
     }
   ]
 }
