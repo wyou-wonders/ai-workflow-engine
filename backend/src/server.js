@@ -35,14 +35,15 @@ const sanitizeBody = (body) => {
 };
 
 // 요청 로거 (수정된 코드)
+// Vercel 서버리스 환경에서는 파일 시스템이 읽기 전용이므로 파일 로깅 제거
 const requestLogger = winston.createLogger({
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.json()
   ),
   transports: [
-    new winston.transports.File({ filename: 'requests.log' }),
-    // Vercel CLI에 로그를 출력하기 위해 콘솔 전송 추가
+    // Vercel 환경에서는 파일 로깅이 불가능하므로 콘솔만 사용
+    // 로컬 개발 환경에서도 콘솔 로그로 충분하며, Vercel에서는 자동으로 로그 수집됨
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.timestamp(),
@@ -103,22 +104,63 @@ app.use((err, req, res, next) => {
 });
 
 // 2. Vercel 배포를 위한 수정 부분
-// initDb()가 완료된 후 app 객체를 export 하는 비동기 함수를 만듭니다.
-const startServer = async () => {
-  // initDb()가 Promise를 반환하므로 await으로 기다립니다.
-  await initDb();
-  return app;
+// 데이터베이스 초기화를 한 번만 수행하기 위한 Promise 캐시
+// 이 패턴은 "Lazy Initialization with Caching"이라고 불립니다.
+let dbInitPromise = null;
+
+/**
+ * 데이터베이스 초기화를 보장하는 함수
+ * 여러 요청이 동시에 들어와도 초기화는 한 번만 수행됩니다.
+ * @returns {Promise<void>} 초기화 완료를 나타내는 Promise
+ */
+const ensureDbInitialized = async () => {
+  // 이미 초기화가 진행 중이거나 완료된 경우, 기존 Promise를 재사용
+  if (!dbInitPromise) {
+    dbInitPromise = initDb().catch((error) => {
+      // 초기화 실패 시 캐시를 초기화하여 재시도 가능하게 함
+      dbInitPromise = null;
+      logger.error('Database initialization failed', { error: error.message });
+      throw error;
+    });
+  }
+  return dbInitPromise;
+};
+
+// Vercel 서버리스 환경을 위한 비동기 핸들러
+// Vercel은 이 함수를 각 요청마다 호출하며, Express 앱으로 요청을 전달합니다.
+const vercelHandler = async (req, res) => {
+  try {
+    // 첫 요청 시 데이터베이스 초기화를 보장
+    await ensureDbInitialized();
+    // 초기화가 완료되면 Express 앱이 요청을 처리
+    app(req, res);
+  } catch (error) {
+    // 데이터베이스 초기화 실패 시 에러 응답
+    logger.error('Handler initialization error', { error: error.message });
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: '서버 초기화 중 오류가 발생했습니다.',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
 };
 
 // 로컬 개발 환경(NODE_ENV가 'production'이 아닐 때)에서만 직접 서버를 실행합니다.
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
-  startServer().then((app) => {
-    app.listen(PORT, () => {
-      logger.info(`Backend server is running on http://localhost:${PORT}`);
+  ensureDbInitialized()
+    .then(() => {
+      app.listen(PORT, () => {
+        logger.info(`Backend server is running on http://localhost:${PORT}`);
+      });
+    })
+    .catch((error) => {
+      logger.error('Failed to start server', { error: error.message });
+      process.exit(1);
     });
-  });
 }
 
 // Vercel이 이 부분을 가져가서 서버를 실행합니다.
-module.exports = startServer();
+// Vercel의 @vercel/node는 이 함수를 각 요청마다 호출합니다.
+module.exports = vercelHandler;
