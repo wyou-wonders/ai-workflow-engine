@@ -18,7 +18,7 @@ const protect = (req, res, next) => {
           .json({ message: 'Not authorized, token has been invalidated' });
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, "JWT_SECRET");
       req.user = decoded;
       next();
     } catch (error) {

@@ -9,10 +9,10 @@ const logger = require('./utils/logger');
 const winston = require('winston');
 const onFinished = require('on-finished');
 
-if (!process.env.JWT_SECRET) {
-  logger.error('FATAL ERROR: JWT_SECRET is not defined.');
-  process.exit(1);
-}
+// if (!process.env.JWT_SECRET) {
+//   logger.error('FATAL ERROR: JWT_SECRET is not defined.');
+//   process.exit(1);
+// }
 
 // 민감 정보 마스킹 함수 (기존 코드와 동일)
 const sanitizeBody = (body) => {
