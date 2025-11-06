@@ -5,7 +5,6 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "buildCommand": "npm install && npm run build",
         "distDir": "dist"
       }
     },
@@ -16,12 +15,12 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "source": "/(.*)",
+      "destination": "/frontend/$1"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/api/(.*)",
+      "destination": "/backend/src/server.js"
     }
   ]
 }
