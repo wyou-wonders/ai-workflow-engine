@@ -35,12 +35,55 @@ const getSslConfig = () => {
   return false
 }
 
+/**
+ * PostgreSQL 연결 풀 생성
+ * Vercel 환경에서는 POSTGRES_URL 환경 변수가 자동으로 주입됩니다.
+ * 로컬 개발 환경에서는 .env 파일에 POSTGRES_URL을 설정해야 합니다.
+ */
+if (!process.env.POSTGRES_URL) {
+  logger.warn('POSTGRES_URL 환경 변수가 설정되지 않았습니다. 데이터베이스 연결이 실패할 수 있습니다.')
+  logger.warn('로컬 개발: .env 파일에 POSTGRES_URL을 설정하세요.')
+  logger.warn('Vercel 배포: 프로젝트 설정 > Environment Variables에서 POSTGRES_URL을 추가하세요.')
+}
+
 // Vercel이 자동으로 환경 변수를 주입해 줍니다.
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
   // 환경에 따라 SSL 설정 적용
-  ssl: getSslConfig()
+  ssl: getSslConfig(),
+  // 서버리스 환경에서 연결 풀 최적화
+  // 최대 연결 수를 제한하여 Cold Start 시간 단축
+  max: 10, // 최대 10개의 연결
+  idleTimeoutMillis: 30000, // 30초 동안 사용되지 않으면 연결 종료
+  connectionTimeoutMillis: 10000 // 10초 내 연결 실패 시 타임아웃
 })
+
+// 연결 풀 이벤트 리스너 (디버깅 및 모니터링용)
+pool.on('connect', (client) => {
+  logger.debug('새로운 PostgreSQL 클라이언트 연결됨')
+})
+
+pool.on('error', (err, client) => {
+  logger.error('PostgreSQL 연결 풀 오류', { error: err.message, stack: err.stack })
+})
+
+// 연결 테스트 함수
+const testConnection = async () => {
+  try {
+    const result = await pool.query('SELECT NOW() as current_time')
+    logger.info('PostgreSQL 연결 성공', { 
+      currentTime: result.rows[0].current_time,
+      environment: process.env.VERCEL ? 'Vercel' : 'Local'
+    })
+    return true
+  } catch (error) {
+    logger.error('PostgreSQL 연결 테스트 실패', { 
+      error: error.message,
+      hint: process.env.POSTGRES_URL ? 'POSTGRES_URL이 설정되어 있지만 연결에 실패했습니다.' : 'POSTGRES_URL 환경 변수를 확인하세요.'
+    })
+    return false
+  }
+}
 
 const db = {
   query: (text, params) => pool.query(text, params)
@@ -48,6 +91,12 @@ const db = {
 
 const initDb = async () => {
   try {
+    // 먼저 연결 테스트
+    const connectionOk = await testConnection()
+    if (!connectionOk) {
+      throw new Error('PostgreSQL 연결에 실패했습니다. POSTGRES_URL 환경 변수를 확인하세요.')
+    }
+
     const tableCreationQueries = [
       `CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`,
       `CREATE TABLE IF NOT EXISTS templates (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, config JSONB NOT NULL, created_by INTEGER, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL)`,
@@ -123,4 +172,4 @@ const closeDb = async () => {
   logger.info('Database pool has ended.')
 }
 
-module.exports = { db, pool, initDb, closeDb };
+module.exports = { db, pool, initDb, closeDb, testConnection };
