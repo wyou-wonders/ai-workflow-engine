@@ -15,12 +15,14 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/backend/src/server.js"
-    },
-    {
       "source": "/(.*)",
       "destination": "/frontend/$1"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/backend/src/server.js"
     }
   ]
 }
