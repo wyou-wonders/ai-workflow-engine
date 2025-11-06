@@ -5,13 +5,41 @@ const { Pool } = require('pg')
 const bcrypt = require('bcryptjs')
 const logger = require('../utils/logger')
 
+/**
+ * PostgreSQL 연결 설정
+ * - Vercel 환경: SSL 연결 필수 (VERCEL 환경 변수 존재)
+ * - 로컬 개발 환경: SSL 비활성화 (로컬 PostgreSQL은 SSL 미지원 가능)
+ * - POSTGRES_URL에 sslmode 파라미터가 있으면 그에 따름
+ */
+const getSslConfig = () => {
+  // Vercel 환경인지 확인 (Vercel은 자동으로 VERCEL=1을 설정)
+  const isVercel = process.env.VERCEL === '1' || process.env.VERCEL_ENV
+
+  // POSTGRES_URL에 sslmode 파라미터가 있는지 확인
+  const postgresUrl = process.env.POSTGRES_URL || ''
+  const hasSslMode = postgresUrl.includes('sslmode=')
+
+  // sslmode 파라미터가 있으면 그대로 사용 (URL에 포함된 설정 우선)
+  if (hasSslMode) {
+    return undefined // URL의 sslmode 파라미터를 사용
+  }
+
+  // Vercel 환경이면 SSL 활성화
+  if (isVercel) {
+    return {
+      rejectUnauthorized: false // Vercel의 자체 서명 인증서 허용
+    }
+  }
+
+  // 로컬 개발 환경에서는 SSL 비활성화
+  return false
+}
+
 // Vercel이 자동으로 환경 변수를 주입해 줍니다.
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
-  // Vercel 환경에서는 SSL이 필요합니다.
-  ssl: {
-    rejectUnauthorized: false
-  }
+  // 환경에 따라 SSL 설정 적용
+  ssl: getSslConfig()
 })
 
 const db = {
@@ -21,13 +49,13 @@ const db = {
 const initDb = async () => {
   try {
     const tableCreationQueries = [
-            `CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`,
-            `CREATE TABLE IF NOT EXISTS templates (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, config JSONB NOT NULL, created_by INTEGER, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL)`,
-            `CREATE TABLE IF NOT EXISTS workflows (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, title TEXT, template_snapshot JSONB NOT NULL, execution_context JSONB NOT NULL, is_bookmarked BOOLEAN DEFAULT false, bookmark_title TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE)`,
-            `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`,
-            `CREATE TABLE IF NOT EXISTS user_template_permissions (user_id INTEGER NOT NULL, template_id INTEGER NOT NULL, PRIMARY KEY (user_id, template_id), FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE, FOREIGN KEY (template_id) REFERENCES templates (id) ON DELETE CASCADE)`,
-            `CREATE TABLE IF NOT EXISTS error_logs (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, action_type TEXT, workflow_id INTEGER, step_index INTEGER, error_message TEXT, context JSONB, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL)`,
-            `CREATE TABLE IF NOT EXISTS llm_logs (id SERIAL PRIMARY KEY, timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, user_id INTEGER, username TEXT, workflow_id INTEGER, template_name TEXT, step_index INTEGER, provider TEXT, model_id TEXT, request_payload JSONB, response_payload TEXT, is_success BOOLEAN, error_message TEXT, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL)`
+      `CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS templates (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, config JSONB NOT NULL, created_by INTEGER, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL)`,
+      `CREATE TABLE IF NOT EXISTS workflows (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, title TEXT, template_snapshot JSONB NOT NULL, execution_context JSONB NOT NULL, is_bookmarked BOOLEAN DEFAULT false, bookmark_title TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE)`,
+      `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`,
+      `CREATE TABLE IF NOT EXISTS user_template_permissions (user_id INTEGER NOT NULL, template_id INTEGER NOT NULL, PRIMARY KEY (user_id, template_id), FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE, FOREIGN KEY (template_id) REFERENCES templates (id) ON DELETE CASCADE)`,
+      `CREATE TABLE IF NOT EXISTS error_logs (id SERIAL PRIMARY KEY, user_id INTEGER, username TEXT, timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, action_type TEXT, workflow_id INTEGER, step_index INTEGER, error_message TEXT, context JSONB, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL)`,
+      `CREATE TABLE IF NOT EXISTS llm_logs (id SERIAL PRIMARY KEY, timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, user_id INTEGER, username TEXT, workflow_id INTEGER, template_name TEXT, step_index INTEGER, provider TEXT, model_id TEXT, request_payload JSONB, response_payload TEXT, is_success BOOLEAN, error_message TEXT, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL)`
     ]
 
     for (const query of tableCreationQueries) {
