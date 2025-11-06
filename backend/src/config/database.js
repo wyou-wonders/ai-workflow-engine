@@ -163,7 +163,9 @@ const initDb = async () => {
     }
   } catch (err) {
     logger.error('Database initialization error', { error: err.stack })
-    process.exit(1)
+    // Vercel 서버리스 환경에서는 process.exit()를 호출하면 안 됩니다.
+    // 대신 에러를 throw하여 상위에서 처리하도록 합니다.
+    throw err
   }
 }
 

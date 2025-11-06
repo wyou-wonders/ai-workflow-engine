@@ -9,6 +9,20 @@ const logger = require('./utils/logger');
 const winston = require('winston');
 const onFinished = require('on-finished');
 
+// Vercel 서버리스 환경에서 unhandled rejection을 처리
+// 이렇게 하면 Promise rejection이 발생해도 함수가 정상적으로 종료됩니다.
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', { promise, reason });
+  // Vercel 환경에서는 process.exit()를 호출하지 않습니다.
+  // 대신 로그만 남기고 계속 진행합니다.
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', { error: error.message, stack: error.stack });
+  // Vercel 환경에서는 process.exit()를 호출하지 않습니다.
+  // 대신 로그만 남기고 계속 진행합니다.
+});
+
 // if (!process.env.JWT_SECRET) {
 //   logger.error('FATAL ERROR: JWT_SECRET is not defined.');
 //   process.exit(1);
@@ -143,15 +157,23 @@ const vercelHandler = async (req, res) => {
   try {
     // 첫 요청 시 데이터베이스 초기화를 보장
     await ensureDbInitialized();
-    // 초기화가 완료되면 Express 앱이 요청을 처리
+
+    // Express 앱이 요청을 처리
+    // Express는 비동기 미들웨어를 자동으로 처리하므로 직접 호출하면 됩니다.
     app(req, res);
   } catch (error) {
     // 데이터베이스 초기화 실패 시 에러 응답
-    logger.error('Handler initialization error', { error: error.message });
+    logger.error('Handler initialization error', {
+      error: error.message,
+      stack: error.stack,
+      url: req.originalUrl,
+      method: req.method
+    });
     if (!res.headersSent) {
       res.status(500).json({
         message: '서버 초기화 중 오류가 발생했습니다.',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        hint: '데이터베이스 연결을 확인하세요. POSTGRES_URL 환경 변수가 설정되어 있는지 확인하세요.'
       });
     }
   }
