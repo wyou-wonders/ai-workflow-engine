@@ -1,0 +1,28 @@
+# Mac
+.DS_Store
+
+# Node
+node_modules/
+/backend/node_modules
+/frontend/node_modules
+
+# Logs
+*.log
+requests.log
+
+# DB
+workflow.db
+workflow.db-journal
+
+# Env
+.env
+backend/.env
+frontend/.env.local
+
+# 
+*.xml
+/logos
+/history
+/workflow_json
+*.txt
+.vercel

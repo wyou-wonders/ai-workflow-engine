@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- REFACTOR HIGHLIGHT --- */
+/* 디자인 예시의 커스텀 스타일을 Tailwind CSS의 @layer 규칙에 맞게 적용 */
+@layer base {
+  html {
+    font-family: "Noto Sans KR", sans-serif;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold text-sm h-10 px-4 rounded-lg transition-all whitespace-nowrap;
+  }
+  .btn-sm {
+    @apply h-9 px-3;
+  }
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primaryLight disabled:bg-disabled disabled:text-panelBackground;
+  }
+  .btn-secondary {
+    @apply bg-white text-primary border border-border hover:bg-panelBackground;
+  }
+  .btn-destructive {
+    @apply bg-error/10 text-error hover:bg-error/20;
+  }
+  .btn-link {
+    @apply h-auto px-0 bg-transparent;
+  }
+  .btn-link-primary {
+    @apply text-primaryLight hover:underline;
+  }
+  .btn-link-info {
+    @apply text-info hover:underline;
+  }
+
+  .prose {
+    @apply text-primary max-w-none text-body;
+  }
+  .prose h1,
+  .prose h2,
+  .prose h3 {
+    @apply font-bold text-primary mt-4 mb-2;
+  }
+  .prose pre {
+    @apply bg-primary text-white rounded-md p-4 text-sm my-4 overflow-x-auto;
+  }
+  /* pre 태그 내부가 아닌 인라인 code 태그에만 스타일 적용 */
+  .prose code:not(pre > code) {
+    @apply bg-border text-primary rounded-sm px-1 py-0.5 text-sm;
+  }
+  .prose ul {
+    @apply list-disc pl-5 my-2;
+  }
+  .prose table {
+    @apply w-full my-4 border-collapse;
+  }
+  .prose th,
+  .prose td {
+    @apply border border-border px-4 py-2;
+  }
+  .prose thead {
+    @apply bg-panelBackground font-semibold;
+  }
+  .prose blockquote {
+    @apply border-l-4 border-border pl-4 italic my-2;
+  }
+
+  .sidebar-link-text {
+    @apply whitespace-nowrap overflow-hidden text-ellipsis;
+  }
+  .step-block:not(:last-child) {
+    @apply mb-6;
+  }
+  /* 디자인 예시의 form-input 스타일을 적용 */
+  .form-input {
+    @apply block w-full rounded-lg border-0 bg-panelBackground p-[14px] shadow-sm focus:ring-2 focus:ring-primaryLight;
+  }
+
+  /* For Auth Modal */
+  #auth-overlay {
+    @apply fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 transition-opacity;
+  }
+  /* rounded-modal을 사용하여 더 둥근 모서리 적용 */
+  .auth-card {
+    @apply bg-white rounded-modal shadow-2xl w-full max-w-md p-8 sm:p-10;
+  }
+}

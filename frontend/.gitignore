@@ -1,0 +1,14 @@
+# Vite
+node_modules
+dist
+.env.local
+.env.*.local
+
+# IDE config
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
