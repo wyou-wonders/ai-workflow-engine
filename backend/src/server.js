@@ -44,10 +44,10 @@ const requestLogger = winston.createLogger({
     new winston.transports.File({ filename: 'requests.log' }),
     // Vercel CLI에 로그를 출력하기 위해 콘솔 전송 추가
     new winston.transports.Console({
-        format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.json() // JSON 형식으로 출력하여 Vercel에서 파싱하기 용이하게 함
-        )
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json() // JSON 형식으로 출력하여 Vercel에서 파싱하기 용이하게 함
+      )
     })
   ],
 });
